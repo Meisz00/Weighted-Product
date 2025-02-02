@@ -21,14 +21,21 @@ def weighted_product(df, bobot, jenis_kriteria, total_dana):
 # Streamlit UI
 st.set_page_config(page_title="Dana Bantuan WPM", layout="wide")
 
+# Inisialisasi session state untuk navigasi
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'home'
+
 # Sidebar Menu dengan Button
 with st.sidebar:
     st.header("Menu")
-    home_btn = st.button("🏠 Home", use_container_width=True)
-    tata_cara_btn = st.button("📖 Tata Cara", use_container_width=True)
-    perhitungan_btn = st.button("📊 Perhitungan", use_container_width=True)
+    if st.button("🏠 Home", use_container_width=True):
+        st.session_state.current_page = 'home'
+    if st.button("📖 Tata Cara", use_container_width=True):
+        st.session_state.current_page = 'tata_cara'
+    if st.button("📊 Perhitungan", use_container_width=True):
+        st.session_state.current_page = 'perhitungan'
 
-# CSS untuk mengubah warna teks di home page
+# CSS styling
 css = """
 <style>
     /* Background styling */
@@ -56,15 +63,6 @@ css = """
     [data-testid="stHeader"] {
         color: black !important;
     }
-    
-    /* Khusus untuk sidebar tetap putih */
-    section[data-testid="stSidebar"] h1,
-    section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3,
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
-        color: white !important;
-    }
-    
     /* Target untuk konten di home */
     .home-content {
         color: black !important;
@@ -73,14 +71,12 @@ css = """
 """
 
 # Halaman Home
-if home_btn or (not tata_cara_btn and not perhitungan_btn):
+if st.session_state.current_page == 'home':
     st.markdown(css, unsafe_allow_html=True)
     
-    # Menggunakan markdown untuk header dengan class khusus
     st.markdown("<h1 style='color: black !important;'>Aplikasi Perhitungan Dana Bantuan dengan Weighted Product</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='color: black !important;'>🏠 Selamat Datang di Aplikasi Dana Bantuan</h2>", unsafe_allow_html=True)
     
-    # Konten home
     st.markdown("""
     <div class="home-content">
     Aplikasi ini dirancang untuk membantu Anda menghitung alokasi dana bantuan menggunakan metode <strong>Weighted Product Model (WPM)</strong>.
@@ -94,7 +90,7 @@ if home_btn or (not tata_cara_btn and not perhitungan_btn):
     """, unsafe_allow_html=True)
 
 # Tata Cara Penggunaan
-if tata_cara_btn:
+elif st.session_state.current_page == 'tata_cara':
     st.header("📖 Tata Cara Penggunaan")
     st.write("""
     1. Upload file dalam format **CSV atau Excel** yang **hanya berisi data numerik**.
@@ -104,23 +100,58 @@ if tata_cara_btn:
     5. Masukkan total dana yang tersedia.
     6. Klik **Hitung Dana Bantuan** untuk melihat hasilnya.
     """)
-    # Tabel contoh bobot
-    st.subheader("📌 Keterangan Bobot")
-    bobot_df = pd.DataFrame({
-        "Nilai Bobot": [1, 2, 3, 4, 5],
-        "Keterangan": [
-            "Tidak terlalu penting",
-            "Kurang penting",
-            "Cukup penting",
-            "Penting",
-            "Sangat penting"
-        ]
-    })
     
-    st.table(bobot_df)
+    st.subheader("📌 Keterangan Bobot")
+    
+    # HTML table dengan center alignment
+    html_table = """
+    <style>
+        .custom-table {
+            width: 100%;
+            text-align: center;
+            border-collapse: collapse;
+        }
+        .custom-table th, .custom-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .custom-table th {
+            background-color: #f0f2f6;
+        }
+    </style>
+    <table class="custom-table">
+        <tr>
+            <th>Nilai Bobot</th>
+            <th>Keterangan</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>Tidak terlalu penting</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Kurang penting</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Cukup penting</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>Penting</td>
+        </tr>
+        <tr>
+            <td>5</td>
+            <td>Sangat penting</td>
+        </tr>
+    </table>
+    """
+    
+    st.markdown(html_table, unsafe_allow_html=True)
 
 # Perhitungan Dana Bantuan
-if perhitungan_btn:
+elif st.session_state.current_page == 'perhitungan':
     st.header("📊 Perhitungan Dana Bantuan")
 
     uploaded_file = st.file_uploader("Upload CSV atau Excel", type=["csv", "xlsx"])
