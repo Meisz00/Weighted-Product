@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
+from datetime import datetime
+import io
 
 # Fungsi Weighted Product Model
 def weighted_product(df, id_column, bobot, jenis_kriteria):
@@ -30,21 +32,25 @@ def allocate_funds(result_df, total_dana, num_recipients):
     total_score = selected_df["Skor WPM"].sum()
     selected_df["Skor WPM Normalized"] = selected_df["Skor WPM"] / total_score
     selected_df["Dana Bantuan"] = selected_df["Skor WPM Normalized"] * total_dana
-    # Bulatkan dana bantuan ke bilangan bulat
     selected_df["Dana Bantuan"] = selected_df["Dana Bantuan"].round(0).astype(int)
     return selected_df
 
 # Streamlit UI
 st.set_page_config(page_title="Dana Bantuan WPM", layout="wide")
 
-# Inisialisasi session state untuk navigasi
+# Inisialisasi session state untuk navigasi dan hasil
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'home'
+if 'final_results' not in st.session_state:
+    st.session_state.final_results = None
+if 'display_results' not in st.session_state:
+    st.session_state.display_results = None
+if 'uploaded_file' not in st.session_state:
+    st.session_state.uploaded_file = None
 
 # CSS styling
 home_css = """
 <style>
-    /* Background styling */
     body {
         background-image: url('https://images.pexels.com/photos/10067197/pexels-photo-10067197.jpeg');
         background-size: cover;
@@ -59,7 +65,6 @@ home_css = """
 
 table_css = """
 <style>
-    /* Target semua kemungkinan class untuk header di Streamlit */
     .element-container div.stMarkdown h1,
     header.css-18ni7ap.e8zbici2,
     div.css-1629p8f.e16nr0p31 h1,
@@ -73,12 +78,9 @@ table_css = """
     [data-testid="stHeader"] {
         color: black !important;
     }
-    /* Target untuk konten di home */
     .home-content {
         color: black !important;
     }
-    
-    /* Styling untuk tabel hasil */
     .dataframe {
         margin: 0 auto;
         text-align: center !important;
@@ -89,14 +91,10 @@ table_css = """
     .dataframe td {
         text-align: center !important;
     }
-    /* Memastikan semua elemen dalam tabel tercentered */
-     /* Styling untuk tabel hasil */
     div[data-testid="stTable"] table {
         width: 100%;
         border-collapse: collapse;
     }
-
-    /* Header tabel */
     div[data-testid="stTable"] th {
         background-color: #f0f2f6 !important;
         font-weight: bold !important;
@@ -104,8 +102,6 @@ table_css = """
         padding: 10px !important;
         color: black !important;
     }
-
-    /* Isi tabel */
     div[data-testid="stTable"] td {
         text-align: center !important;
         padding: 8px !important;
@@ -116,12 +112,23 @@ table_css = """
 # Sidebar Menu dengan Button
 with st.sidebar:
     st.header("Menu")
-    if st.button("🏠 Home", use_container_width=True):
+    if st.button("🏠 Beranda", use_container_width=True):
         st.session_state.current_page = 'home'
-    if st.button("📖 Tata Cara", use_container_width=True):
+        # Reset hasil ketika kembali ke beranda
+        st.session_state.final_results = None
+        st.session_state.display_results = None
+        st.session_state.uploaded_file = None
+    if st.button("📖 Tata Cara & Proses Pengerjaan", use_container_width=True):
         st.session_state.current_page = 'tata_cara'
+        # Reset hasil ketika kembali ke tata cara
+        st.session_state.final_results = None
+        st.session_state.display_results = None
+        st.session_state.uploaded_file = None
     if st.button("📊 Perhitungan", use_container_width=True):
         st.session_state.current_page = 'perhitungan'
+        # Reset hasil ketika masuk ke perhitungan
+        st.session_state.final_results = None
+        st.session_state.display_results = None
 
 # Halaman-halaman
 if st.session_state.current_page == 'home':
@@ -146,7 +153,7 @@ elif st.session_state.current_page == 'tata_cara':
     st.markdown(table_css, unsafe_allow_html=True)
     st.header("📖 Tata Cara Penggunaan")
     st.write("""
-    1. Upload file dalam format **CSV atau Excel** yang **berisi data teks** hanya untuk ID/label patokan dan **berisi data numerik** untuk seluruh kriteria yang digunakan.
+    1. Upload file dalam format **Excel** yang **berisi data teks** hanya untuk ID/label patokan dan **berisi data numerik** untuk seluruh kriteria yang digunakan. Jika terdapat kriteria yang bertipe kategori, maka dapat diubah terlebih dahulu menjadi numerik dengan mengikuti skala pembobotan. Jangan menggunakan skala 0 agar tidak mengganggu perhitungan.
     2. Pilih variabel yang akan digunakan untuk perhitungan.
     3. Tentukan bobot tiap variabel (1-5) dengan ketentuan seperti tabel di bawah, lalu bobot akan dinormalisasi otomatis.
     4. Pilih apakah variabel termasuk **Cost** (semakin kecil semakin baik) atau **Benefit** (semakin besar semakin baik).
@@ -157,7 +164,6 @@ elif st.session_state.current_page == 'tata_cara':
     
     st.subheader("📌 Keterangan Bobot")
     
-    # HTML table dengan center alignment
     html_table = """
     <style>
         .custom-table {
@@ -204,13 +210,32 @@ elif st.session_state.current_page == 'tata_cara':
     
     st.markdown(html_table, unsafe_allow_html=True)
 
+    st.subheader("🔢 Proses Perhitungan")
+    st.write("""
+    1. Data akan diproses menggunakan metode Weighted Product Model (WPM) sesuai dengan bobot dan jenis kriteria (Cost atau Benefit) yang telah ditentukan.
+    2. Normalisasi bobot dilakukan dengan membagi setiap bobot dengan total bobot keseluruhan, sehingga totalnya menjadi 1.
+    3. Bobot yang telah dinormalisasi digunakan sebagai pangkat pada setiap kriteria. Jika kriteria adalah Cost, bobotnya dibuat negatif, sedangkan untuk Benefit, bobot tetap positif.
+    4. Perhitungan vektor S dilakukan dengan mengalikan setiap nilai kriteria yang telah dipangkatkan berdasarkan bobot normalisasi.
+    5. Normalisasi vektor S dilakukan dengan membagi nilai vektor S setiap alternatif dengan total vektor S keseluruhan, sehingga totalnya menjadi 1. Hasil ini disebut sebagai vektor V.
+    6. Perangkingan dilakukan dengan mengurutkan nilai vektor V dari yang terbesar ke yang terkecil.
+    7. Penentuan dana bantuan dilakukan dengan mengalikan nilai vektor V dengan total modal dana yang tersedia, sehingga dana dialokasikan secara proporsional berdasarkan prioritas.      
+    """)
+
 elif st.session_state.current_page == 'perhitungan':
     st.markdown(table_css, unsafe_allow_html=True)
     st.header("📊 Perhitungan Dana Bantuan")
 
-    uploaded_file = st.file_uploader("Upload CSV atau Excel", type=["csv", "xlsx"])
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
+    uploaded_file = st.file_uploader("Upload Data Excel", type=["xlsx"], key="file_uploader")
+    
+    # Cek apakah file yang di-upload berbeda dari yang sebelumnya
+    if uploaded_file is not None:
+        if st.session_state.uploaded_file != uploaded_file:
+            # Reset hasil ketika file diupload
+            st.session_state.final_results = None
+            st.session_state.display_results = None
+            st.session_state.uploaded_file = uploaded_file
+        
+        df = pd.read_excel(uploaded_file)
 
         if df.select_dtypes(include=["object"]).shape[1] > 1:
             st.warning("⚠️ Data yang diupload mengandung kolom dengan tipe data teks. Harap ubah data menjadi numerik untuk kolom kriteria, kecuali kolom label/ID! (Abaikan pesan ini jika kolom kriteria sudah bertipe data numerik).")
@@ -266,15 +291,16 @@ elif st.session_state.current_page == 'perhitungan':
                 
                 final_results = allocate_funds(hasil, total_dana, num_recipients)
                 
-                st.write("📊 **Hasil Perhitungan Dana Bantuan:**")
+                # Simpan hasil ke session state
+                st.session_state.final_results = final_results
+                
                 display_results = final_results[[id_column, "Dana Bantuan"]].copy()
-                # Format Dana Bantuan sebagai string dengan format ribuan
                 display_results["Dana Bantuan"] = display_results["Dana Bantuan"].apply(lambda x: f"Rp{x:,.0f}")
-                st.table(display_results.set_index(id_column).rename_axis(None))
+                st.session_state.display_results = display_results
 
-                st.write("📊 **Visualisasi Alokasi Dana:**")
+                # Menampilkan grafik
                 chart_data = final_results[[id_column, "Dana Bantuan"]].copy()
-                chart_data = chart_data.sort_values(by="Dana Bantuan", ascending=False)  # Urutkan dari terbesar ke terkecil
+                chart_data = chart_data.sort_values(by="Dana Bantuan", ascending=False)
                 chart = alt.Chart(chart_data).mark_bar(color='#8ab3cf').encode(
                     x=alt.X("Dana Bantuan:Q", title="Dana Bantuan (Rp)"),
                     y=alt.Y(f"{id_column}:N", sort="-x", title="Perusahaan/UMKM"),
@@ -285,6 +311,41 @@ elif st.session_state.current_page == 'perhitungan':
                 ).configure_axis(
                     labelFontSize=12
                 )
-                st.altair_chart(chart, use_container_width=True)
-            else:
-                st.error("Pilih minimal satu variabel untuk perhitungan!")
+
+# Menampilkan hasil jika sudah dihitung sebelumnya
+if st.session_state.final_results is not None and st.session_state.display_results is not None:
+    st.write("📊 **Hasil Perhitungan Dana Bantuan:**")
+    st.table(st.session_state.display_results.set_index(id_column).rename_axis(None))
+    
+    # Menampilkan grafik
+    st.write("📊 **Visualisasi Alokasi Dana:**")
+    chart_data = st.session_state.final_results[[id_column, "Dana Bantuan"]].copy()
+    chart_data = chart_data.sort_values(by="Dana Bantuan", ascending=False)
+    chart = alt.Chart(chart_data).mark_bar(color='#8ab3cf').encode(
+        x=alt.X("Dana Bantuan:Q", title="Dana Bantuan (Rp)"),
+        y=alt.Y(f"{id_column}:N", sort="-x", title="Perusahaan/UMKM"),
+        tooltip=[id_column, alt.Tooltip("Dana Bantuan:Q", title="Dana Bantuan", format=",")]
+    ).properties(
+        width=700,
+        height=500
+    ).configure_axis(
+        labelFontSize=12
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+if st.session_state.final_results is not None:
+        # Prepare export results
+        export_results = st.session_state.final_results[[id_column, "Dana Bantuan"]].copy()
+        export_results["Dana Bantuan"] = export_results["Dana Bantuan"].apply(lambda x: int(x))
+
+        excel_buffer = io.BytesIO()
+        export_results.to_excel(excel_buffer, index=False)
+        excel_buffer.seek(0)
+
+        st.download_button(
+            label="📥 Download Hasil Perhitungan (.xlsx)",
+            data=excel_buffer,
+            file_name=f"Hasil_Alokasi_Dana_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_button_persistent"
+        )
