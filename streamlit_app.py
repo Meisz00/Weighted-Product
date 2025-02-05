@@ -210,7 +210,7 @@ elif st.session_state.current_page == 'tata_cara':
     
     st.markdown(html_table, unsafe_allow_html=True)
 
-    st.subheader("🔢 Proses Perhitungan")
+    st.subheader("🔢 Proses Pengerjaan")
     st.write("""
     1. Data akan diproses menggunakan metode Weighted Product Model (WPM) sesuai dengan bobot dan jenis kriteria (Cost atau Benefit) yang telah ditentukan.
     2. Normalisasi bobot dilakukan dengan membagi setiap bobot dengan total bobot keseluruhan, sehingga totalnya menjadi 1.
