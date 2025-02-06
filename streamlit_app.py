@@ -65,32 +65,6 @@ home_css = """
 
 table_css = """
 <style>
-    .element-container div.stMarkdown h1,
-    header.css-18ni7ap.e8zbici2,
-    div.css-1629p8f.e16nr0p31 h1,
-    div.css-1629p8f.e16nr0p31 h2,
-    div.css-1629p8f.e16nr0p31 h3,
-    .css-10trblm.e16nr0p30,
-    .css-zt5igj.ev15ef950,
-    [data-testid="stMarkdownContainer"] h1,
-    [data-testid="stMarkdownContainer"] h2,
-    [data-testid="stMarkdownContainer"] h3,
-    [data-testid="stHeader"] {
-        color: black !important;
-    }
-    .home-content {
-        color: black !important;
-    }
-    .dataframe {
-        margin: 0 auto;
-        text-align: center !important;
-    }
-    .dataframe th {
-        text-align: center !important;
-    }
-    .dataframe td {
-        text-align: center !important;
-    }
     div[data-testid="stTable"] table {
         width: 100%;
         border-collapse: collapse;
@@ -132,7 +106,7 @@ with st.sidebar:
 
 # Halaman-halaman
 if st.session_state.current_page == 'home':
-    st.markdown(home_css + table_css, unsafe_allow_html=True)
+    st.markdown(home_css, unsafe_allow_html=True)
     
     st.markdown("<h1 style='color: black !important;'>Perhitungan Dana Bantuan dengan Metode Weighted Product</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='color: black !important;'>🏠 Selamat Datang di Situs Dana Bantuan</h2>", unsafe_allow_html=True)
@@ -150,7 +124,6 @@ if st.session_state.current_page == 'home':
     """, unsafe_allow_html=True)
 
 elif st.session_state.current_page == 'tata_cara':
-    st.markdown(table_css, unsafe_allow_html=True)
     st.header("📖 Tata Cara Penggunaan")
     st.write("""
     1. Upload file dalam format **Excel** yang **berisi data teks** hanya untuk ID/label patokan dan **berisi data numerik** untuk seluruh kriteria yang digunakan. Jika terdapat kriteria yang bertipe kategori, maka dapat diubah terlebih dahulu menjadi numerik dengan mengikuti skala pembobotan. Jangan menggunakan skala 0 agar tidak mengganggu perhitungan.
@@ -300,17 +273,6 @@ elif st.session_state.current_page == 'perhitungan':
 
                 # Menampilkan grafik
                 chart_data = final_results[[id_column, "Dana Bantuan"]].copy()
-                chart_data = chart_data.sort_values(by="Dana Bantuan", ascending=False)
-                chart = alt.Chart(chart_data).mark_bar(color='#8ab3cf').encode(
-                    x=alt.X("Dana Bantuan:Q", title="Dana Bantuan (Rp)"),
-                    y=alt.Y(f"{id_column}:N", sort="-x", title="Perusahaan/UMKM"),
-                    tooltip=[id_column, alt.Tooltip("Dana Bantuan:Q", title="Dana Bantuan", format=",")]
-                ).properties(
-                    width=700,
-                    height=500
-                ).configure_axis(
-                    labelFontSize=12
-                )
 
 # Menampilkan hasil jika sudah dihitung sebelumnya
 if st.session_state.final_results is not None and st.session_state.display_results is not None:
