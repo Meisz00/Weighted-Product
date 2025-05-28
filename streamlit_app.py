@@ -108,7 +108,7 @@ with st.sidebar:
 if st.session_state.current_page == 'home':
     st.markdown(home_css, unsafe_allow_html=True)
     
-    st.markdown("<h1 style='color: black !important;'>Perhitungan Dana Bantuan</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: black !important;'>Perhitungan Dana Bantuan dengan Metode Weighted Product</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='color: black !important;'>🏠 Selamat Datang di Situs Dana Bantuan</h2>", unsafe_allow_html=True)
     
     st.markdown("""
